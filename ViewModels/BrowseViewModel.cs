@@ -1,3 +1,4 @@
+
 using System.Collections.ObjectModel;
 using QuiverLauncher.Models;
 using QuiverLauncher.Services;
@@ -5,8 +6,8 @@ using QuiverLauncher.Services;
 namespace QuiverLauncher.ViewModels;
 
 /// <summary>
-/// Browse: the quiverlauncher.com catalog, searched and filtered on the site and read a page at
-/// a time, or the player's own app list (a JSON file or URL), filtered here.
+/// Каталог quiverlauncher.com: поиск и фильтрация на сайте с загрузкой по страницам
+/// либо собственный список приложений игрока (JSON-файл или URL) с фильтрацией здесь.
 /// </summary>
 public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyList<GameInfo>> library,
     Func<string> customListLocation, Func<string, Task<(List<GameInfo> Apps, string? Error)>> loadCustomList) : ObservableViewModel
@@ -23,28 +24,35 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
     private int _total;
     private int _catalogTotal;
     private int _hiddenInLibrary;
-    // With library apps hidden, pages are read until at least this many cards show.
+
+    // Если приложения из библиотеки скрыты, загружаем страницы, пока не наберётся нужное количество карточек.
     private const int MinCards = 24;
     private readonly Dictionary<string, QuiverCatalogGameDetail?> _games = new(StringComparer.OrdinalIgnoreCase);
 
     public ObservableCollection<BrowseItem> Items { get; } = [];
-    /// <summary>Original games a search matched, shown above the apps as on the website (at most four).</summary>
+
+    /// <summary>Игры, соответствующие поиску, отображаются над приложениями, как на сайте (не более четырёх).</summary>
     public ObservableCollection<BrowseGame> Games { get; } = [];
     public bool HasGames => Games.Count > 0;
     public IReadOnlyList<QuiverCatalogConsole> Consoles { get; private set; } = [];
     public string Search { get; set; } = "";
     public string Sort { get; set; } = "added";
     public string? Platform { get; set; } = BrowseText.CurrentPlatform;
-    /// <summary>A console id, or "maker:Brand" for every console a maker made.</summary>
+
+    /// <summary>Идентификатор консоли или "maker:Brand" для всех консолей одного производителя.</summary>
     public string? Console { get; set; }
     public string? ProjectType { get; set; }
-    /// <summary>"no-generated" or "no-ai" hides apps by AI use; null shows every app.</summary>
+
+    /// <summary>"no-generated" или "no-ai" скрывает приложения в зависимости от использования ИИ; null показывает все.</summary>
     public string? Ai { get; set; }
-    /// <summary>Leaves apps already in the library out of the cards, so new ones are easier to find.</summary>
+
+    /// <summary>Скрывает приложения, уже находящиеся в библиотеке, чтобы проще было находить новые.</summary>
     public bool HideLibraryApps { get; set; } = true;
-    /// <summary>How many of the apps read so far were left out for being in the library.</summary>
+
+    /// <summary>Количество уже загруженных приложений, скрытых из-за наличия в библиотеке.</summary>
     public int HiddenInLibrary { get => _hiddenInLibrary; private set => Set(ref _hiddenInLibrary, value); }
-    /// <summary>How many apps the catalog has, or the player's list when it shows.</summary>
+
+    /// <summary>Количество приложений в каталоге или в пользовательском списке, если он открыт.</summary>
     public int Total { get => _total; private set => Set(ref _total, value); }
     public bool HasCustomList => !string.IsNullOrWhiteSpace(customListLocation());
     public bool ShowingCustomList { get => _showingCustomList && HasCustomList; set => Set(ref _showingCustomList, value); }
@@ -52,10 +60,11 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public bool IsLoadingMore { get => _isLoadingMore; private set => Set(ref _isLoadingMore, value); }
     public bool CanLoadMore => _cursor != null && !IsLoading && !IsLoadingMore && !ShowingCustomList;
-    /// <summary>Why nothing shows: an error, or an empty result.</summary>
+
+    /// <summary>Причина отсутствия результатов: ошибка или пустой список.</summary>
     public string Status { get => _status; private set => Set(ref _status, value); }
 
-    /// <summary>Clears the search and filters, like the website's Clear filters; the AI filter is a preference and stays.</summary>
+    /// <summary>Сбрасывает поиск и фильтры, как кнопка сброса фильтров на сайте; фильтр ИИ сохраняется.</summary>
     public void ClearFilters()
     {
         Search = "";
@@ -64,11 +73,11 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         ProjectType = null;
     }
 
-    /// <summary>A maker's heading in the console list, as the website words it.</summary>
-    public static string BrandName(string brand) => brand == "OtherPlatforms" ? "Other platforms" : brand;
-    public static string AllOfBrand(string brand) => brand == "OtherPlatforms" ? "All other platforms" : $"All {brand}";
+    /// <summary>Название производителя в списке консолей, как на сайте.</summary>
+    public static string BrandName(string brand) => brand == "OtherPlatforms" ? "Другие платформы" : brand;
+    public static string AllOfBrand(string brand) => brand == "OtherPlatforms" ? "Все остальные платформы" : $"Все платформы {brand}";
 
-    /// <summary>Loads the first page for the current search and filters, replacing the cards.</summary>
+    /// <summary>Загружает первую страницу для текущего поиска и фильтров, заменяя карточки.</summary>
     public async Task ReloadAsync(CancellationToken token)
     {
         var generation = ++_generation;
@@ -99,11 +108,11 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
             Show(page);
             if (!await FillAsync(query, generation, MinCards, token)) return;
             if (Items.Count == 0 && HiddenInLibrary > 0)
-                Status = "Everything that matches is already in your library.";
+                Status = "Все найденные приложения уже есть в вашей библиотеке.";
             else if (Items.Count == 0)
             {
-                Status = "Nothing matches that search and those filters.";
-                // Usage data: what players look for and don't find, by length only (never the words typed).
+                Status = "По этому запросу и выбранным фильтрам ничего не найдено.";
+                // Данные об использовании: сохраняется только длина поискового запроса, а не введённые слова.
                 Telemetry.Current.Track("search_no_results", new Dictionary<string, object?>
                 {
                     ["query_length"] = Search.Trim().Length,
@@ -119,7 +128,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
                 ["reason"] = Telemetry.ReasonOf(ex),
                 ["cause"] = Telemetry.CauseOf(ex),
             });
-            Status = $"Couldn't reach quiverlauncher.com. {QuiverCatalogClient.Explain(ex)}";
+            Status = $"Не удалось подключиться к quiverlauncher.com. {QuiverCatalogClient.Explain(ex)}";
         }
         finally
         {
@@ -131,7 +140,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         }
     }
 
-    /// <summary>A game and every app that plays it, read once per session.</summary>
+    /// <summary>Игра и все приложения для неё; данные загружаются один раз за сеанс.</summary>
     public async Task<QuiverCatalogGameDetail?> GetGameAsync(string slug, CancellationToken token)
     {
         if (_games.TryGetValue(slug, out var known)) return known;
@@ -140,7 +149,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         return _games[slug] = game;
     }
 
-    // The games a search matched: from the apps it found, the games whose title has every word searched for.
+    // Игры, соответствующие поиску: названия должны содержать все введённые слова.
     private async Task FindGamesAsync(int generation, IReadOnlyList<QuiverCatalogApp> apps, CancellationToken token)
     {
         var search = Search.Trim();
@@ -157,14 +166,14 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
                     Games.Add(new BrowseGame(found.Game.Slug, found.Game.Title, BrowseGame.ArtFor(found.Game), found.Entries.Count));
             Notify(nameof(HasGames));
         }
-        // The apps still show; the games row is a shortcut to them.
+        // Карточки приложений по-прежнему отображаются; строка игр — это быстрый переход к ним.
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            System.Diagnostics.Debug.WriteLine($"Matching games unavailable: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Не удалось загрузить подходящие игры: {ex.Message}");
         }
     }
 
-    /// <summary>Appends the next page of the catalog, if there is one.</summary>
+    /// <summary>Загружает следующую страницу каталога, если она доступна.</summary>
     public async Task<bool> LoadMoreAsync(CancellationToken token)
     {
         if (!CanLoadMore) return false;
@@ -184,7 +193,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         }
         catch (Exception ex) when (generation == _generation && !token.IsCancellationRequested)
         {
-            Status = $"Couldn't load more apps. {ex.Message}";
+            Status = $"Не удалось загрузить дополнительные приложения. {ex.Message}";
             return false;
         }
         finally
@@ -197,20 +206,17 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         }
     }
 
-    /// <summary>Marks the cards of apps already in the library.</summary>
+    /// <summary>Обновляет отметки карточек для приложений, уже находящихся в библиотеке.</summary>
     public void RefreshLibraryState()
     {
         MarkLibraryState(Items);
         Notify(nameof(JustAdded));
     }
 
-    /// <summary>
-    /// Apps added from these cards while library apps are hidden: they stay, showing they were added, until the player
-    /// comes back to the catalog (<see cref="HideAddedApps"/>) or the list loads again.
-    /// </summary>
+    /// <summary>Количество недавно добавленных приложений, которые пока остаются в каталоге.</summary>
     public int JustAdded => HideLibraryApps ? Items.Count(i => i.InLibrary) : 0;
 
-    /// <summary>Coming back to the catalog: apps added last time are hidden now, like the rest of the library.</summary>
+    /// <summary>При возвращении в каталог скрывает приложения, добавленные ранее, как и остальные приложения библиотеки.</summary>
     public void HideAddedApps()
     {
         if (!HideLibraryApps) return;
@@ -221,15 +227,15 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         Notify(nameof(JustAdded));
     }
 
-    /// <summary>Marks cards whose app is already in the library: these, or a game page's.</summary>
+    /// <summary>Отмечает карточки приложений, которые уже есть в библиотеке, включая карточки со страниц игр.</summary>
     public void MarkLibraryState(IEnumerable<BrowseItem> items)
     {
         var apps = library();
         var folders = apps.Select(a => a.FolderName?.Trim()).Where(f => !string.IsNullOrEmpty(f))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        // A library app is linked to its catalog entry by the entry's id, else by repository (CatalogReleases), so one in a
-        // folder of its own (added before the catalog renamed its folder, or given another name) still counts. The folder is
-        // the fallback.
+
+        // Приложение связывается с записью каталога по ID или репозиторию (CatalogReleases).
+        // Если папка приложения была переименована, используется запасная проверка по имени папки.
         var slugs = apps.Select(a => a.CatalogSlug).Where(s => !string.IsNullOrEmpty(s))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var ids = apps.Select(a => a.CatalogEntryId).Where(id => !string.IsNullOrEmpty(id)).ToHashSet(StringComparer.Ordinal);
@@ -240,7 +246,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
                   folders.Contains(item.FolderName.Trim());
     }
 
-    /// <summary>A game's apps as cards, best first, as on its page.</summary>
+    /// <summary>Возвращает карточки приложений для игры в порядке от лучших к остальным.</summary>
     public List<BrowseItem> CardsFor(QuiverCatalogGameDetail game)
     {
         var cards = game.Entries.Select(app => BrowseItem.FromCatalog(app, _consoleNames)).ToList();
@@ -248,7 +254,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         return cards;
     }
 
-    /// <summary>An app's card, for opening its page from elsewhere (the Library).</summary>
+    /// <summary>Создаёт карточку приложения для перехода к нему из другого раздела, например из библиотеки.</summary>
     public BrowseItem CardFor(QuiverCatalogApp app)
     {
         var card = BrowseItem.FromCatalog(app, _consoleNames);
@@ -256,16 +262,16 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         return card;
     }
 
-    /// <summary>A console's name, as the catalog lists it.</summary>
+    /// <summary>Название консоли, как оно указано в каталоге.</summary>
     public string ConsoleName(string id) => _consoleNames.GetValueOrDefault(id, id.ToUpperInvariant());
 
-    /// <summary>The library app a card stands for, once its repository is known.</summary>
+    /// <summary>Находит приложение в библиотеке по его репозиторию.</summary>
     public GameInfo? FindInLibrary(GameInfo app) => LibraryAddService.FindExisting(library(), app);
 
-    /// <summary>Forgets the player's list, so a changed location or file is read again.</summary>
+    /// <summary>Сбрасывает пользовательский список, чтобы при следующем открытии заново прочитать файл или URL.</summary>
     public void ForgetCustomList()
     {
-        // A load still reading the old list is dropped, so it can't show after the change.
+        // Если старый список ещё загружается, результат будет отброшен и не отобразится после изменения источника.
         ++_generation;
         _cursor = null;
         _customApps = null;
@@ -298,7 +304,8 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         if (hidden > 0) HiddenInLibrary += hidden;
     }
 
-    // With library apps hidden a page can come back nearly empty: read on until enough cards show. False once a newer load took over.
+    // Если приложения из библиотеки скрыты, продолжаем загружать страницы, пока не наберётся нужное количество карточек.
+    // Возвращает false, если загрузка уже заменена более новым запросом.
     private async Task<bool> FillAsync(QuiverCatalogQuery query, int generation, int wanted, CancellationToken token)
     {
         while (HideLibraryApps && Items.Count < wanted && _cursor != null)
@@ -319,10 +326,10 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
             _catalogTotal = facets.Total;
             _consoleNames = facets.Consoles.ToDictionary(c => c.Id, c => c.Name, StringComparer.OrdinalIgnoreCase);
         }
-        // Without console names the cards show console ids; the catalog itself still loads.
+        // Если названия консолей не загрузились, карточки покажут их идентификаторы; сам каталог продолжит работать.
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            System.Diagnostics.Debug.WriteLine($"Catalog facets unavailable: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Не удалось загрузить фильтры каталога: {ex.Message}");
         }
     }
 
@@ -336,7 +343,7 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
             if (generation != _generation) return;
             if (error != null)
             {
-                Status = $"Couldn't read your app list. {error}";
+                Status = $"Не удалось прочитать список приложений. {error}";
                 return;
             }
             _customApps = apps;
@@ -347,8 +354,8 @@ public sealed class BrowseViewModel(QuiverCatalogClient client, Func<IReadOnlyLi
         AddCards(_customApps.Where(a => search.Length == 0 || AppSearch.Matches(a, search))
             .OrderBy(a => a.DisplayName, StringComparer.OrdinalIgnoreCase).Select(BrowseItem.FromList).ToList());
         if (Items.Count == 0)
-            Status = _customApps.Count == 0 ? "Your app list has no apps."
-                : HiddenInLibrary > 0 ? "Everything that matches is already in your library."
-                : "Nothing in your app list matches that search.";
+            Status = _customApps.Count == 0 ? "В вашем списке нет приложений."
+                : HiddenInLibrary > 0 ? "Все найденные приложения уже есть в вашей библиотеке."
+                : "В вашем списке нет приложений, соответствующих запросу.";
     }
 }
