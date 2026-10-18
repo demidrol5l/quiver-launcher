@@ -1,9 +1,10 @@
+
 using QuiverLauncher.Models;
 using QuiverLauncher.Services;
 
 namespace QuiverLauncher.ViewModels;
 
-/// <summary>One player's feedback, laid out like the website's: who, when and where, how it ran, and what they said.</summary>
+/// <summary>Отзывы игроков в формате сайта: кто, когда и на чём играл, результат и комментарий.</summary>
 public sealed record BrowseReviewLine(string Author, string Meta, string Result, string Tone, string Body)
 {
     public string Initial => Author.Length > 0 ? Author[..1].ToUpperInvariant() : "?";
@@ -14,8 +15,8 @@ public sealed record BrowseReviewLine(string Author, string Meta, string Result,
 }
 
 /// <summary>
-/// An app's details on Browse: what the site knows about it, recent player reviews (read-only;
-/// reviews are written on quiverlauncher.com) and its README.
+/// Подробная информация о приложении в каталоге: сведения с сайта, последние отзывы игроков
+/// (только для чтения; отзывы публикуются на quiverlauncher.com) и файл README.
 /// </summary>
 public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<QuiverCatalogApp, QuiverCatalogProject, GameInfo> toLibraryEntry,
     Func<GameInfo, CancellationToken, Task<DocumentContent>> repositoryReadme,
@@ -34,14 +35,18 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
     private string _error = "";
 
     public BrowseItem? Item { get => _item; private set => Set(ref _item, value); }
-    /// <summary>The app as a library entry; null until the catalog says where it comes from.</summary>
+
+    /// <summary>Приложение в формате записи библиотеки; доступно после определения его источника в каталоге.</summary>
     public GameInfo? Entry { get => _entry; private set => Set(ref _entry, value); }
-    /// <summary>Who made the app and where it comes from, once its page has loaded.</summary>
+
+    /// <summary>Автор приложения и источник проекта после загрузки страницы.</summary>
     public QuiverCatalogProject? Project { get => _project; private set => Set(ref _project, value); }
     public IReadOnlyList<BrowseReviewLine> Reviews { get => _reviews; private set => Set(ref _reviews, value); }
-    /// <summary>The app's releases, newest first, once the Releases tab has asked for them.</summary>
+
+    /// <summary>История выпусков приложения, отсортированная от новых к старым.</summary>
     public IReadOnlyList<QuiverCatalogRelease>? Releases { get => _releases; private set => Set(ref _releases, value); }
-    /// <summary>The site has older releases than the ones shown.</summary>
+
+    /// <summary>На сайте есть более старые выпуски, чем показанные.</summary>
     public bool ReleasesMore { get => _releasesMore; private set => Set(ref _releasesMore, value); }
     public string ReleasesStatus { get => _releasesStatus; private set => Set(ref _releasesStatus, value); }
     public string ReviewsStatus { get => _reviewsStatus; private set => Set(ref _reviewsStatus, value); }
@@ -60,8 +65,8 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         ReleasesStatus = "";
         Error = "";
         Reviews = [];
-        ReviewsStatus = item.App == null ? "" : "Loading reviews…";
-        var readme = Readme.OpenAsync(item.Title, "Loading README…", ct => LoadReadmeAsync(item, ct), token);
+        ReviewsStatus = item.App == null ? "" : "Загрузка отзывов…";
+        var readme = Readme.OpenAsync(item.Title, "Загрузка README…", ct => LoadReadmeAsync(item, ct), token);
         if (item.App is { } app)
             await Task.WhenAll(LoadDetailAsync(app, generation, token), LoadReviewsAsync(app, generation, token));
         await readme;
@@ -83,10 +88,10 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
 
     public void Dispose() => Close();
 
-    /// <summary>Whether the app has releases to show: the catalog's history, or for an app not in the catalog, its repository's.</summary>
+    /// <summary>Есть ли выпуски приложения: в каталоге или, если его там нет, в репозитории.</summary>
     public bool HasReleases => Item?.App != null || (repositoryReleases != null && !string.IsNullOrWhiteSpace(Item?.ListApp?.Repository));
 
-    /// <summary>Reads the app's release history the first time its Releases tab opens.</summary>
+    /// <summary>Загружает историю выпусков при первом открытии вкладки «Релизы».</summary>
     public async Task LoadReleasesAsync(CancellationToken token)
     {
         if (!HasReleases || Releases != null || ReleasesStatus.Length > 0) return;
@@ -96,37 +101,37 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
             return;
         }
         var generation = _generation;
-        ReleasesStatus = "Loading releases…";
+        ReleasesStatus = "Загрузка релизов…";
         try
         {
             var page = await client.GetReleaseHistoryAsync(app.Slug, token);
             if (generation != _generation) return;
             Releases = page.Items;
             ReleasesMore = !page.IsDone;
-            ReleasesStatus = page.Items.Count == 0 ? "Releases are being cataloged. Check the project's repository for now." : "";
+            ReleasesStatus = page.Items.Count == 0 ? "История выпусков ещё не добавлена в каталог. Пока проверьте репозиторий проекта." : "";
         }
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            if (generation == _generation) ReleasesStatus = $"Couldn't load releases. {ex.Message}";
+            if (generation == _generation) ReleasesStatus = $"Не удалось загрузить релизы. {ex.Message}";
         }
     }
 
-    // An app that isn't in the catalog: its latest releases and notes, straight from its repository.
+    // Приложение отсутствует в каталоге: загружаем последние выпуски и примечания прямо из его репозитория.
     private async Task LoadRepositoryReleasesAsync(GameInfo app, CancellationToken token)
     {
         var generation = _generation;
-        ReleasesStatus = "Loading releases…";
+        ReleasesStatus = "Загрузка релизов…";
         try
         {
             var releases = await repositoryReleases!(app, token);
             if (generation != _generation) return;
             Releases = releases;
             ReleasesMore = false;
-            ReleasesStatus = releases.Count == 0 ? "This app's repository has no releases." : "";
+            ReleasesStatus = releases.Count == 0 ? "В репозитории этого приложения нет релизов." : "";
         }
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            if (generation == _generation) ReleasesStatus = $"Couldn't load releases from the app's repository. {ex.Message}";
+            if (generation == _generation) ReleasesStatus = $"Не удалось загрузить релизы из репозитория приложения. {ex.Message}";
         }
     }
 
@@ -141,7 +146,7 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         }
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            if (generation == _generation) Error = $"Couldn't load this app from quiverlauncher.com, so it can't be added right now. {ex.Message}";
+            if (generation == _generation) Error = $"Не удалось загрузить сведения об этом приложении с quiverlauncher.com, поэтому сейчас его нельзя добавить. {ex.Message}";
         }
     }
 
@@ -156,7 +161,7 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         }
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            if (generation == _generation) ReviewsStatus = $"Couldn't load reviews. {ex.Message}";
+            if (generation == _generation) ReviewsStatus = $"Не удалось загрузить отзывы. {ex.Message}";
         }
     }
 
@@ -165,15 +170,15 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         try
         {
             if (item.App == null)
-                return item.ListApp == null ? new("No README.", IsMarkdown: false) : await repositoryReadme(item.ListApp, token);
+                return item.ListApp == null ? new("Файл README отсутствует.", IsMarkdown: false) : await repositoryReadme(item.ListApp, token);
             var readme = await client.GetReadmeAsync(item.App.Slug, token);
             return string.IsNullOrWhiteSpace(readme?.Markdown)
-                ? new(string.IsNullOrWhiteSpace(item.App.Description) ? "This app has no README." : item.App.Description, IsMarkdown: false)
+                ? new(string.IsNullOrWhiteSpace(item.App.Description) ? "У этого приложения нет файла README." : item.App.Description, IsMarkdown: false)
                 : new(readme.Markdown, readme.RawBase);
         }
         catch (Exception ex) when (!token.IsCancellationRequested)
         {
-            return new($"Couldn't load the README. {ex.Message}", IsMarkdown: false);
+            return new($"Не удалось загрузить README. {ex.Message}", IsMarkdown: false);
         }
     }
 
@@ -182,9 +187,9 @@ public sealed class BrowseDetailsViewModel(QuiverCatalogClient client, Func<Quiv
         var meta = new List<string>();
         if (review.CreatedAt > 0) meta.Add(DateTimeOffset.FromUnixTimeMilliseconds((long)review.CreatedAt).LocalDateTime.ToString("d MMM yyyy"));
         if (review.Platform is { Length: > 0 } platform) meta.Add(BrowseText.PlatformNames([platform]));
-        if (review.Version is { Length: > 0 } version) meta.Add($"tested on {version}");
+        if (review.Version is { Length: > 0 } version) meta.Add($"проверено на версии {version}");
         var tone = review.Result switch { "runs" => "positive", "issues" => "caution", "broken" => "negative", _ => "" };
-        return new(string.IsNullOrWhiteSpace(review.Author) ? "A player" : review.Author.Trim(),
+        return new(string.IsNullOrWhiteSpace(review.Author) ? "Игрок" : review.Author.Trim(),
             string.Join(" · ", meta.Where(p => p.Length > 0)), BrowseText.ReviewResult(review.Result), tone, review.Body.Trim());
     }
 }
