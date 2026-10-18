@@ -1,9 +1,10 @@
+
 using QuiverLauncher.Models;
 using QuiverLauncher.Services;
 
 namespace QuiverLauncher.ViewModels;
 
-/// <summary>One App Catalog card: a quiverlauncher.com app, or an app from the player's own list.</summary>
+/// <summary>Карточка приложения в каталоге Quiver Launcher или приложения из собственной библиотеки пользователя.</summary>
 public sealed class BrowseItem : ObservableViewModel, IBrowseCard
 {
     private bool _inLibrary;
@@ -27,14 +28,17 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
         RunsOnLinux = os.Contains("linux");
         RunsOnAndroid = os.Contains("android");
         RunsOnIOS = os.Contains("ios");
-        // The website lists platforms in its icon order.
+
+        // Платформы перечисляются в том же порядке, что и на сайте.
         PlatformTip = BrowseText.PlatformNames(new[] { "windows", "macos", "linux", "android", "ios" }.Where(os.Contains));
     }
 
-    /// <summary>The catalog app, or null for an app from the player's own list.</summary>
+    /// <summary>Приложение из каталога или null, если приложение взято из собственной библиотеки.</summary>
     public QuiverCatalogApp? App { get; }
-    /// <summary>The app from the player's own list, already in library format.</summary>
+
+    /// <summary>Приложение из собственной библиотеки в формате библиотеки.</summary>
     public GameInfo? ListApp { get; }
+
     public string Title { get; }
     public string Subtitle { get; }
     public string? ImageUrl { get; }
@@ -42,9 +46,10 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
     public bool HasSubtitle => Subtitle.Length > 0;
     public bool HasKind => Kind.Length > 0;
 
-    // The card, drawn like the website's: tags and platforms, title, "Based on" games, then how it runs and when it updated.
-    /// <summary>The app's first two tags, consoles by name, in capitals.</summary>
+    // Карточка показывает теги и платформы, название, игры-основы, состояние запуска и дату обновления.
+    /// <summary>Первые два тега приложения или названия консолей в верхнем регистре.</summary>
     public string CardKind { get; }
+
     public IReadOnlyList<string> BasedOn { get; }
     public bool HasBasedOn => BasedOn.Count > 0;
     public bool RunsOnWindows { get; }
@@ -53,22 +58,39 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
     public bool RunsOnAndroid { get; }
     public bool RunsOnIOS { get; }
     public string PlatformTip { get; }
-    public string AiChip => App?.AiLevel switch { "assisted" => "AI-ASSISTED", "generated" => "MOSTLY AI", _ => "" };
+
+    public string AiChip => App?.AiLevel switch
+    {
+        "assisted" => "С ПОМОЩЬЮ ИИ",
+        "generated" => "СОЗДАНО ИИ",
+        _ => ""
+    };
+
     public bool HasAiChip => AiChip.Length > 0;
     public bool HasFooter => App != null;
+
     public string ScoreLabel => App == null ? "" : BrowseText.ScoreParts(App.Recommended, App.ReportIssues, App.ReportBroken).Label;
     public string ScoreCounts => App == null ? "" : BrowseText.ScoreParts(App.Recommended, App.ReportIssues, App.ReportBroken).Counts;
     public string ScoreTone => App == null ? "" : BrowseText.ScoreParts(App.Recommended, App.ReportIssues, App.ReportBroken).Tone;
+
     public bool ScorePositive => ScoreTone == "positive";
     public bool ScoreCaution => ScoreTone == "caution";
     public bool ScoreNegative => ScoreTone == "negative";
     public bool ScoreMuted => ScoreTone == "muted";
-    public bool ReleaseStale => App != null && ReleaseText.StartsWith("No release", StringComparison.Ordinal);
+
+    public bool ReleaseStale => App != null &&
+        (ReleaseText.StartsWith("Релизов нет", StringComparison.Ordinal) ||
+         ReleaseText.StartsWith("Без релизов", StringComparison.Ordinal));
+
     public string FolderName => App != null ? QuiverCatalogMapping.FolderFor(App) : ListApp?.FolderName ?? "";
+
     public string ScoreText => App == null ? "" : BrowseText.Score(App.Recommended, App.ReportIssues, App.ReportBroken);
     public string ReleaseText => App == null ? "" : BrowseText.ReleaseAge(App.LastReleaseAt, DateTimeOffset.UtcNow);
-    public bool IsNew => App != null && DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds((long)App.AddedAt) < TimeSpan.FromDays(30);
-    public string Badge => InLibrary ? "In library" : IsNew ? "New" : "";
+
+    public bool IsNew => App != null &&
+        DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds((long)App.AddedAt) < TimeSpan.FromDays(30);
+
+    public string Badge => InLibrary ? "В библиотеке" : IsNew ? "Новинка" : "";
     public bool HasBadge => Badge.Length > 0;
     public string BadgeText => Badge.ToUpperInvariant();
 
@@ -91,7 +113,8 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
     }
 
     private bool _isAdding;
-    /// <summary>The card's Add button is adding it to the library.</summary>
+
+    /// <summary>В данный момент приложение добавляется в библиотеку.</summary>
     public bool IsAdding
     {
         get => _isAdding;
@@ -105,40 +128,56 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
         }
     }
 
-    /// <summary>The card can be added to the library straight from the catalog, without opening its page.</summary>
+    /// <summary>Можно добавить приложение из каталога в библиотеку, не открывая его страницу.</summary>
     public bool CanAdd => !InLibrary && (App != null || ListApp != null);
-    public string AddText => IsAdding ? "Adding…" : "+ Add";
-    /// <summary>The card's button: + Add, or Open in Library once the app is in the library.</summary>
+
+    public string AddText => IsAdding ? "Добавление…" : "+ Добавить";
+
+    /// <summary>Кнопка карточки: добавление или открытие приложения в библиотеке.</summary>
     public bool ShowCardAction => CanAdd || (InLibrary && (App != null || ListApp != null));
-    public string CardActionText => InLibrary && !IsAdding ? "Open in Library" : AddText;
-    public string CardActionTip => InLibrary ? "Show it in your library" : "Add to your library";
+
+    public string CardActionText => InLibrary && !IsAdding ? "Открыть в библиотеке" : AddText;
+    public string CardActionTip => InLibrary ? "Показать в библиотеке" : "Добавить в библиотеку";
 
     public bool IsGamepadFocused
     {
         get => _isGamepadFocused;
-        set { if (Set(ref _isGamepadFocused, value)) Notify(nameof(ShouldScroll)); }
+        set
+        {
+            if (Set(ref _isGamepadFocused, value))
+                Notify(nameof(ShouldScroll));
+        }
     }
 
     public bool IsHovered
     {
         get => _isHovered;
-        set { if (Set(ref _isHovered, value)) Notify(nameof(ShouldScroll)); }
+        set
+        {
+            if (Set(ref _isHovered, value))
+                Notify(nameof(ShouldScroll));
+        }
     }
 
-    /// <summary>Cut-off text scrolls while the card is hovered or highlighted, as on the website.</summary>
+    /// <summary>Обрезанный текст прокручивается, когда курсор или фокус геймпада находятся на карточке.</summary>
     public bool ShouldScroll => IsHovered || IsGamepadFocused;
 
     public static BrowseItem FromCatalog(QuiverCatalogApp app, IReadOnlyDictionary<string, string> consoleNames)
     {
         var games = string.Join(", ", app.Games.Select(g => g.Title).Where(t => !string.IsNullOrWhiteSpace(t)));
+
         var kind = app.Consoles.Take(2).Select(id => consoleNames.GetValueOrDefault(id, id))
             .Append(BrowseText.ProjectTypeName(app.ProjectType)).Where(s => s.Length > 0);
+
         var art = app.LibraryArt;
-        // The website's card shows the first two tags, a console tag by the console's name.
+
+        // Карточка показывает первые два тега и название консоли.
         var tags = app.Tags.Where(t => !string.IsNullOrWhiteSpace(t)).Take(2)
             .Select(t => consoleNames.GetValueOrDefault(t.Trim(), BrowseText.TagLabel(t.Trim()))).ToList();
+
         var cardKind = tags.Count > 0 ? string.Join(" · ", tags) : string.Join(" · ", kind);
         var basedOn = app.Games.Select(g => g.Title).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
+
         return new(app, null, FirstText(app.ProjectName, app.Name), games.Length > 0 ? games : app.Name,
             FirstText(art?.Header, art?.Capsule, app.Artwork), string.Join(" · ", kind), cardKind, basedOn);
     }
@@ -148,25 +187,51 @@ public sealed class BrowseItem : ObservableViewModel, IBrowseCard
         var title = FirstText(app.Project, app.Name);
         var subtitle = string.Equals(title, app.Name, StringComparison.OrdinalIgnoreCase) ? "" : app.Name;
         var kind = string.Join(" · ", app.Tags.Take(2));
-        return new(null, app, title, subtitle, FirstText(app.GameIconUrl), kind, kind, subtitle.Length > 0 ? [subtitle] : []);
+
+        return new(null, app, title, subtitle, FirstText(app.GameIconUrl), kind, kind,
+            subtitle.Length > 0 ? [subtitle] : []);
     }
 
     private static string FirstText(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? "";
 }
 
-/// <summary>How Browse words catalog data, matching the website and Quiver Launcher 4.</summary>
+/// <summary>Тексты каталога, переведённые для интерфейса Quiver Launcher.</summary>
 public static class BrowseText
 {
     public static readonly IReadOnlyList<(string? Id, string Name)> Sorts =
-        [("added", "Recently added"), ("updated", "Recently updated"), ("rating", "Top rated"), ("name", "Name A–Z")];
+    [
+        ("added", "Сначала новые"),
+        ("updated", "Недавно обновлённые"),
+        ("rating", "С высоким рейтингом"),
+        ("name", "По имени А–Я")
+    ];
+
     public static readonly IReadOnlyList<(string? Id, string Name)> Platforms =
-        [(null, "All platforms"), ("windows", "Windows"), ("linux", "Linux"), ("macos", "macOS"), ("android", "Android"), ("ios", "iOS")];
+    [
+        (null, "Все платформы"),
+        ("windows", "Windows"),
+        ("linux", "Linux"),
+        ("macos", "macOS"),
+        ("android", "Android"),
+        ("ios", "iOS")
+    ];
+
     public static readonly IReadOnlyList<(string? Id, string Name)> ProjectTypes =
-        [(null, "All project types"), ("port", "Port"), ("tool", "Tool"), ("emulator", "Emulator"), ("game", "Standalone game")];
+    [
+        (null, "Все типы проектов"),
+        ("port", "Порт"),
+        ("tool", "Утилита"),
+        ("emulator", "Эмулятор"),
+        ("game", "Самостоятельная игра")
+    ];
 
     public static readonly IReadOnlyList<(string? Id, string Name)> AiFilters =
-        [(null, "Show all apps"), ("no-generated", "Hide mostly AI-generated apps"), ("no-ai", "Hide apps with any AI use")];
+    [
+        (null, "Показать все приложения"),
+        ("no-generated", "Скрыть приложения, созданные преимущественно ИИ"),
+        ("no-ai", "Скрыть приложения с использованием ИИ")
+    ];
 
     public static string? CurrentPlatform =>
         OperatingSystem.IsAndroid() ? "android" : OperatingSystem.IsWindows() ? "windows"
@@ -178,33 +243,64 @@ public static class BrowseText
     public static string PlatformNames(IEnumerable<string> ids) => string.Join(", ",
         ids.Select(id => Platforms.FirstOrDefault(p => p.Id == id).Name).Where(n => n != null));
 
-    /// <summary>What players said about how an app runs, in one line.</summary>
+    /// <summary>Отзывы пользователей о работе приложения в одной строке.</summary>
     public static string Score(int runs, int issues, int broken)
     {
         var (label, counts, _) = ScoreParts(runs, issues, broken);
         return label + counts;
     }
 
-    /// <summary>The verdict, the counts behind it (" · 2 run well"), and its tone, as the website colours them.</summary>
+    /// <summary>Итоговая оценка, количество отзывов и цвет оценки.</summary>
     public static (string Label, string Counts, string Tone) ScoreParts(int runs, int issues, int broken)
     {
-        if (runs + issues + broken == 0) return ("Not rated yet", "", "muted");
-        // Always one verdict, as ProtonDB always shows one tier: what most players said, and when it's a tie the more
-        // careful of the answers tied (the counts after it show the split).
+        if (runs + issues + broken == 0)
+            return ("Пока нет оценок", "", "muted");
+
+        // Выбираем наиболее частый результат. При равенстве приоритет у более осторожной оценки.
         var max = Math.Max(runs, Math.Max(issues, broken));
-        var (label, tone) = broken == max ? ("Doesn't run", "negative") : issues == max ? ("Has issues", "caution") : ("Runs well", "positive");
-        // Everyone agrees: "Runs well · 4 players", rather than repeating the verdict.
+
+        var (label, tone) = broken == max
+            ? ("Не запускается", "negative")
+            : issues == max
+                ? ("Есть проблемы", "caution")
+                : ("Работает хорошо", "positive");
+
         var total = runs + issues + broken;
+
         if (new[] { runs, issues, broken }.Count(n => n > 0) == 1)
-            return (label, $" · {total} {(total == 1 ? "player" : "players")}", tone);
+        {
+            return (label, $" · {total} {RussianWord(total, "пользователь", "пользователя", "пользователей")}", tone);
+        }
+
         var said = new List<string>();
-        if (runs > 0) said.Add($"{runs} {(runs == 1 ? "runs" : "run")} well");
-        if (issues > 0) said.Add($"{issues} with issues");
-        if (broken > 0) said.Add($"{broken} {(broken == 1 ? "doesn't" : "don't")} run");
+
+        if (runs > 0)
+            said.Add($"{runs} {RussianWord(runs, "работает хорошо", "работают хорошо", "работают хорошо")}");
+
+        if (issues > 0)
+            said.Add($"{issues} {RussianWord(issues, "с проблемой", "с проблемами", "с проблемами")}");
+
+        if (broken > 0)
+            said.Add($"{broken} {RussianWord(broken, "не запускается", "не запускаются", "не запускаются")}");
+
         return (label, " · " + string.Join(", ", said), tone);
     }
 
-    // Tags are stored lowercase for matching; these read as the website writes them.
+    private static string RussianWord(int count, string one, string few, string many)
+    {
+        var n = Math.Abs(count) % 100;
+        if (n >= 11 && n <= 14)
+            return many;
+
+        return (n % 10) switch
+        {
+            1 => one,
+            >= 2 and <= 4 => few,
+            _ => many
+        };
+    }
+
+    // Теги хранятся в нижнем регистре для поиска; здесь задаётся их отображение.
     private static readonly Dictionary<string, string> SpecialTagWords = new()
     {
         ["3ds"] = "3DS", ["gb"] = "GB", ["gba"] = "GBA", ["gbc"] = "GBC", ["gcn"] = "GCN", ["n64"] = "N64", ["nds"] = "NDS",
@@ -214,56 +310,76 @@ public static class BrowseText
         ["gbarecomp"] = "GBARecomp", ["psxrecomp"] = "PSXRecomp", ["rexglue"] = "ReXGlue", ["einhander"] = "Einhänder",
         ["dantes"] = "Dante's", ["soulcalibur"] = "SoulCalibur", ["co-op"] = "Co-op",
     };
+
     private static readonly HashSet<string> SmallTagWords = ["a", "an", "and", "in", "of", "on", "the", "to", "vs"];
 
-    /// <summary>"harbour masters" → "Harbour Masters", "n64" → "N64", like the website's tagLabel.</summary>
+    /// <summary>Преобразует теги в читаемый вид, сохраняя известные названия и сокращения.</summary>
     public static string TagLabel(string tag)
     {
-        if (tag != tag.ToLowerInvariant()) return tag;
+        if (tag != tag.ToLowerInvariant())
+            return tag;
+
         return string.Join(' ', tag.Split(' ').Select((part, i) =>
             SpecialTagWords.TryGetValue(part, out var special) ? special
             : i > 0 && SmallTagWords.Contains(part) ? part
-            : string.Join('-', part.Split('-').Select(piece => piece.Length == 0 ? piece : char.ToUpperInvariant(piece[0]) + piece[1..]))));
+            : string.Join('-', part.Split('-').Select(piece =>
+                piece.Length == 0 ? piece : char.ToUpperInvariant(piece[0]) + piece[1..]))));
     }
 
-    /// <summary>Best first by what players said, as the website and Quiver Launcher 4 order a game's ways to play.</summary>
+    /// <summary>Сортирует варианты запуска игры по отзывам пользователей.</summary>
     public static int ByPlayerFeedback(QuiverCatalogApp a, QuiverCatalogApp b)
     {
         static int Total(QuiverCatalogApp app) => app.Recommended + app.ReportIssues + app.ReportBroken;
         static double Score(QuiverCatalogApp app) => (app.Recommended + app.ReportIssues / 2.0 + 1) / (Total(app) + 2);
+
         var order = Score(b).CompareTo(Score(a));
-        if (order == 0) order = Total(b).CompareTo(Total(a));
-        if (order == 0) order = (b.LastReleaseAt ?? 0).CompareTo(a.LastReleaseAt ?? 0);
+        if (order == 0)
+            order = Total(b).CompareTo(Total(a));
+        if (order == 0)
+            order = (b.LastReleaseAt ?? 0).CompareTo(a.LastReleaseAt ?? 0);
+
         return order != 0 ? order : string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase);
     }
 
-    /// <summary>Whether every word of a search is in a game's title, so search can lead to the game.</summary>
+    /// <summary>Проверяет, содержатся ли все слова запроса в названии игры.</summary>
     public static bool TitleMatches(string title, string search)
     {
-        // Case, accents and punctuation aside: "pokemon" finds "Pokémon Red".
+        // Поиск игнорирует регистр, диакритические знаки и пунктуацию: «pokemon» найдёт «Pokémon Red».
         static string Fold(string text) => new(text.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant()
             .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
             .Select(c => char.IsLetterOrDigit(c) ? c : ' ').ToArray());
+
         var words = Fold(search).Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var folded = " " + Fold(title).Replace(" ", "") + " " + Fold(title) + " ";
+
         return words.Length > 0 && words.All(word => folded.Contains(word, StringComparison.Ordinal));
     }
 
     public static string ReleaseAge(double? releasedAt, DateTimeOffset now)
     {
-        if (releasedAt is not { } at) return "No releases";
+        if (releasedAt is not { } at)
+            return "Релизов нет";
+
         var age = now - DateTimeOffset.FromUnixTimeMilliseconds((long)at);
-        if (age.TotalDays >= 365) return $"No release in {(int)(age.TotalDays / 365)} yr+";
-        return "Updated " + (age.TotalDays >= 30 ? $"{(int)(age.TotalDays / 30)} mo ago"
-            : age.TotalDays >= 1 ? $"{(int)age.TotalDays} d ago"
-            : age.TotalHours >= 1 ? $"{(int)age.TotalHours} h ago" : "just now");
+
+        if (age.TotalDays >= 365)
+            return $"Без релизов более {(int)(age.TotalDays / 365)} {RussianWord((int)(age.TotalDays / 365), "года", "лет", "лет")}";
+
+        return "Обновлено " + (age.TotalDays >= 30
+            ? $"{(int)(age.TotalDays / 30)} {RussianWord((int)(age.TotalDays / 30), "месяц", "месяца", "месяцев")} назад"
+            : age.TotalDays >= 1
+                ? $"{(int)age.TotalDays} {RussianWord((int)age.TotalDays, "день", "дня", "дней")} назад"
+                : age.TotalHours >= 1
+                    ? $"{(int)age.TotalHours} {RussianWord((int)age.TotalHours, "час", "часа", "часов")} назад"
+                    : "только что");
     }
 
     public static string ReviewResult(string result) => result switch
     {
-        "runs" => "Runs well",
-        "issues" => "Runs with issues",
-        "broken" => "Doesn't run",
+        "runs" => "Работает хорошо",
+        "issues" => "Работает с проблемами",
+        "broken" => "Не запускается",
         _ => result,
     };
 }
+ 
