@@ -1,10 +1,11 @@
+
 using System.Collections.ObjectModel;
 using QuiverLauncher.Models;
 using QuiverLauncher.Services.Mods;
 
 namespace QuiverLauncher.ViewModels;
 
-/// <summary>Mods catalog, filtering, and document state without references to UI controls.</summary>
+/// <summary>Каталог модификаций, фильтрация и состояние списка без ссылок на элементы интерфейса.</summary>
 public sealed class ModsViewModel : ObservableViewModel
 {
     public ObservableCollection<ModListItem> Rows { get; } = [];
@@ -28,7 +29,7 @@ public sealed class ModsViewModel : ObservableViewModel
     internal bool IsLoadingMore;
     private bool _listIsLoading;
     public bool ListIsLoading { get => _listIsLoading; internal set => Set(ref _listIsLoading, value); }
-    private string _loadingCaption = "Loading mods…";
+    private string _loadingCaption = "Загрузка модификаций…";
     public string LoadingCaption { get => _loadingCaption; internal set => Set(ref _loadingCaption, value); }
     internal CancellationTokenSource? BackgroundLoadCts;
     internal CancellationTokenSource? SearchDebounceCts;
@@ -65,8 +66,8 @@ public sealed class ModsViewModel : ObservableViewModel
     {
         IEnumerable<ModListItem> query = AllItems;
 
-        // Remote search already applied NSFW via the API where supported; still hide NSFW client-side
-        // for GameBanana and for any residual listing rows.
+        // Удалённый поиск уже применяет фильтр NSFW через API, если он поддерживается.
+        // Дополнительно скрываем такие модификации для GameBanana и оставшихся записей списка.
         if (!IncludeNsfw)
             query = query.Where(i => !i.Package.HasContentRating);
 
@@ -77,7 +78,8 @@ public sealed class ModsViewModel : ObservableViewModel
         if (string.Equals(Tab, "Installed", StringComparison.OrdinalIgnoreCase))
             query = query.Where(i => i.Status is ModInstallStatus.Installed or ModInstallStatus.UpdateAvailable);
 
-        // Local text filter only when not showing a remote search result set (or on Installed).
+        // Локальная фильтрация по тексту используется, если не показаны результаты удалённого поиска,
+        // либо если открыта вкладка установленных модификаций.
         var useLocalSearchFilter = !string.IsNullOrWhiteSpace(SearchText) &&
                                    (BrowseSession?.IsSearch != true ||
                                     string.Equals(Tab, "Installed", StringComparison.OrdinalIgnoreCase));
