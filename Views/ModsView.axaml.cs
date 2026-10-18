@@ -1,3 +1,4 @@
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -81,7 +82,7 @@ public partial class ModsView : UserControl
     private Task<MessagePromptResult> ShowChoicePromptAsync(string message, string title) => Host.ChooseAsync(message, title);
     private void OnPropertyChanged(string name) => Host.NotifyHints();
     private const string GamepadHintsVisible = "GamepadHintsVisible";
-    // null = All
+    // null = Все источники
     private ModInstallService ModInstaller => Workspace.ModInstaller;
     private ModCatalogLoader ModCatalog => Workspace.ModCatalog;
 
@@ -110,7 +111,7 @@ public partial class ModsView : UserControl
         ResetGamepadNavigationIndices();
         UpdateMainViewUi();
         if (ModsHeaderText != null)
-            ModsHeaderText.Text = $"Mods — {game.Name}";
+            ModsHeaderText.Text = $"Модификации — {game.Name}";
         SetModsStatus(string.Empty);
         await Workspace.RefreshAsync(forceRefresh: false).ConfigureAwait(true);
         if (_session.IsClosed || version != Model.OpenVersion || !ReferenceEquals(game, Model.Game))
@@ -155,7 +156,7 @@ public partial class ModsView : UserControl
             var modsPath = GameModsConfig.NormalizePath(Model.Game.ModsPath);
             if (string.IsNullOrWhiteSpace(installRoot) || modsPath.Length == 0)
             {
-                _ = _session.RunAsync(() => ShowMessageBoxAsync("Mods folder is not configured for this app.", "Mods"));
+                _ = _session.RunAsync(() => ShowMessageBoxAsync("Папка модификаций не настроена для этого приложения.", "Модификации"));
                 return;
             }
 
@@ -165,7 +166,7 @@ public partial class ModsView : UserControl
         }
         catch (Exception ex)
         {
-            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Failed to open mod folder: {ex.Message}", "Mods"));
+            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Не удалось открыть папку модификаций: {ex.Message}", "Модификации"));
         }
     }
 
@@ -177,7 +178,7 @@ public partial class ModsView : UserControl
             return;
         Model.Tab = tab;
         UpdateModsTabButtons();
-        // Orphan install inclusion depends on Browse+search vs Installed — rebuild rows.
+        // Включение неучтённых установленных модификаций зависит от вкладки и поиска — пересобираем список.
         Workspace.SyncModListItemsFromCatalog();
         Workspace.ApplyFilters();
     }
@@ -186,7 +187,7 @@ public partial class ModsView : UserControl
     {
         if (_context is null)
             return;
-        // Opening the screen clears the box; when that changes nothing (the box was empty), the first load carries on.
+        // При открытии экрана поле очищается. Если оно уже пустое, первая загрузка продолжается без изменений.
         var text = ModsSearchTextBox?.Text?.Trim() ?? string.Empty;
         if (text == Model.SearchText)
             return;
@@ -257,11 +258,11 @@ public partial class ModsView : UserControl
                 return;
             }
 
-            Model.SourceFilterKey = tag; // null tag = All
+            Model.SourceFilterKey = tag; // null = Все источники
             if (tag is { Length: 0 })
                 Model.SourceFilterKey = null;
             UpdateModsSourceFilterButtons();
-            // Source filter changes reset GameBanana paging.
+            // При изменении источника сбрасывается постраничная загрузка GameBanana.
             await Workspace.RefreshAsync(forceRefresh: false).ConfigureAwait(true);
         });
     }
@@ -281,8 +282,8 @@ public partial class ModsView : UserControl
     }
 
     /// <summary>
-    /// True when the mods list is scrolled near the bottom, or content does not overflow the
-    /// viewport (so mouse users can still page when the last incomplete row fills the view).
+    /// Возвращает true, если список модификаций прокручен почти до конца
+    /// или содержимое не выходит за пределы области просмотра.
     /// </summary>
     internal bool IsModsListNearBottomForPrefetch()
     {
@@ -354,7 +355,7 @@ public partial class ModsView : UserControl
         }
         catch (Exception ex)
         {
-            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Could not open page: {ex.Message}", "Mods"));
+            _ = _session.RunAsync(() => ShowMessageBoxAsync($"Не удалось открыть страницу: {ex.Message}", "Модификации"));
         }
     }
 
@@ -424,7 +425,7 @@ public partial class ModsView : UserControl
         if (ModsSourceFilterPanel == null || Model.Game == null)
             return;
         ModsSourceFilterPanel.Children.Clear();
-        var allButton = CreateModsFilterButton("All", tag: "");
+        var allButton = CreateModsFilterButton("Все", tag: "");
         allButton.Classes.Set("selected", Model.SourceFilterKey == null);
         ModsSourceFilterPanel.Children.Add(allButton);
         var resolved = ModCatalog.ResolveSources(Model.Game.ModsSources);
@@ -436,7 +437,7 @@ public partial class ModsView : UserControl
             ModsSourceFilterPanel.Children.Add(button);
         }
 
-        var nsfwButton = CreateModsFilterButton("Include NSFW", tag: "nsfw");
+        var nsfwButton = CreateModsFilterButton("Включить контент 18+", tag: "nsfw");
         nsfwButton.Classes.Set("selected", Model.IncludeNsfw);
         ModsSourceFilterPanel.Children.Add(nsfwButton);
     }
@@ -507,7 +508,7 @@ public partial class ModsView : UserControl
             var checkBoxes = new List<CheckBox>();
             foreach (var file in files)
             {
-                var sizeMb = file.FileSize > 0 ? $"{file.FileSize / (1024d * 1024d):0.##} MB" : "Unknown size";
+                var sizeMb = file.FileSize > 0 ? $"{file.FileSize / (1024d * 1024d):0.##} МБ" : "Размер неизвестен";
                 var desc = string.IsNullOrWhiteSpace(file.Description) ? "" : $" — {file.Description}";
                 var isPreselected = preselectedFileIds != null && preselectedFileIds.Contains(file.Id, StringComparer.OrdinalIgnoreCase);
                 var checkBox = new CheckBox
@@ -544,7 +545,7 @@ public partial class ModsView : UserControl
             };
             var cancelButton = new Button
             {
-                Content = "Cancel",
+                Content = "Отмена",
                 MinWidth = 100,
                 IsCancel = true,
             };
