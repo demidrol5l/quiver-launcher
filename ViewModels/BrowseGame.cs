@@ -1,14 +1,15 @@
+
 using QuiverLauncher.Services;
 
 namespace QuiverLauncher.ViewModels;
 
-/// <summary>A card the controller can highlight in the App Catalog: an app, or a game a search matched.</summary>
+/// <summary>Карточка каталога приложений, на которую можно перейти с помощью контроллера: приложение или найденная игра.</summary>
 public interface IBrowseCard
 {
     bool IsGamepadFocused { get; set; }
 }
 
-/// <summary>An original game a search matched, as on the website: its art, title and how many apps play it.</summary>
+/// <summary>Найденная игрой поиском оригинальная игра: изображение, название и количество приложений для её запуска.</summary>
 public sealed class BrowseGame(string slug, string title, string? art, int ways) : ObservableViewModel, IBrowseCard
 {
     private bool _isGamepadFocused;
@@ -17,10 +18,17 @@ public sealed class BrowseGame(string slug, string title, string? art, int ways)
     public string Title { get; } = title;
     public string? Art { get; } = art;
     public int Ways { get; } = ways;
-    public string WaysText => Ways == 1 ? "1 way to play \u2192" : $"{Ways} ways to play \u2192";
+
+    public string WaysText => Ways switch
+    {
+        1 => "1 способ запуска →",
+        2 or 3 or 4 => $"{Ways} способа запуска →",
+        _ => $"{Ways} способов запуска →"
+    };
+
     public bool IsGamepadFocused { get => _isGamepadFocused; set => Set(ref _isGamepadFocused, value); }
 
-    /// <summary>The game's box art, else its other artwork.</summary>
+    /// <summary>Обложка игры или, если её нет, другое изображение игры.</summary>
     public static string? ArtFor(QuiverCatalogGameInfo game) =>
         new[] { game.LibraryArt?.Capsule, game.Artwork, game.LibraryArt?.Header }.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
 }
